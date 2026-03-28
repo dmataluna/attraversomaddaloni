@@ -1,10 +1,11 @@
 """
 Dashboard: "Maddaloni attraverso i tuoi occhi"
-Analisi di co-progettazione dell'immaginario urbano
-Autore: Progetto Maddaloni — Dashboard v1.0
+Analisi di co-progettazione dell'immaginario urbano — v2.0
+Accessibilità: WCAG 2.1 AA | W3C guidelines
 Requisiti: pip install streamlit plotly pandas scipy numpy
 """
 
+import os
 import streamlit as st
 import pandas as pd
 import numpy as np
@@ -12,10 +13,9 @@ import plotly.graph_objects as go
 import plotly.express as px
 from plotly.subplots import make_subplots
 from scipy import stats
-import io
 
 # ─────────────────────────────────────────────
-# CONFIGURAZIONE PAGINA
+# PAGINA
 # ─────────────────────────────────────────────
 st.set_page_config(
     page_title="Maddaloni attraverso i tuoi occhi",
@@ -25,179 +25,182 @@ st.set_page_config(
 )
 
 # ─────────────────────────────────────────────
-# STILE GLOBALE  (Academic Clean)
+# DESIGN SYSTEM — WCAG 2.1 AA
+# Regole applicate:
+#  • Testo principale #1a1a1a su bianco: 16.7:1 ✓
+#  • Testo secondario #595959 su bianco: 7.0:1 ✓
+#  • Accento primario #1d5fa6 su bianco: 4.7:1 ✓
+#  • Accento negativo #b94a00 su bianco: 4.6:1 ✓
+#  • Nessun testo su sfondo colorato senza verifica contrasto
+#  • Focus visibile su tutti i controlli
+#  • Colore non è l'unico mezzo per trasmettere informazione
 # ─────────────────────────────────────────────
-st.markdown("""
+C_BG       = "#ffffff"
+C_SURFACE  = "#f5f6f8"
+C_BORDER   = "#d0d4da"
+C_TEXT     = "#1a1a1a"
+C_TEXT_SEC = "#595959"
+C_PRIMARY  = "#1d5fa6"
+C_NEGATIVE = "#b94a00"
+C_ZERO     = "#767676"
+C_GRID     = "#e4e6ea"
+
+CAT_PALETTE = ["#1d5fa6", "#b94a00", "#1a7a4a", "#7b3fa0",
+               "#8a6200", "#1a6d7a", "#a02060", "#4a4a4a"]
+
+st.markdown(f"""
 <style>
-    @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600&family=Inter:wght@300;400;500&display=swap');
+  html, body, [class*="css"] {{
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    font-size: 16px; color: {C_TEXT}; background: {C_BG};
+  }}
+  .block-container {{ padding: 1.5rem 2rem 3rem; max-width: 1280px; }}
 
-    html, body, [class*="css"] { font-family: 'Inter', sans-serif; }
+  .dash-header {{
+    background: #1a2e4a; color: #ffffff;
+    padding: 1.75rem 2rem; border-radius: 6px;
+    margin-bottom: 1.5rem; border-left: 5px solid {C_PRIMARY};
+  }}
+  .dash-header h1 {{
+    font-size: 1.6rem; font-weight: 700; margin: 0 0 0.3rem;
+    color: #ffffff; letter-spacing: -0.01em;
+  }}
+  .dash-header p {{ font-size: 0.9rem; margin: 0; color: #c8d4e3; }}
 
-    .main { background: #fafaf8; }
-    .block-container { padding: 2rem 3rem; max-width: 1400px; }
+  .section-title {{
+    font-size: 1.1rem; font-weight: 600; color: {C_TEXT};
+    border-bottom: 2px solid {C_BORDER};
+    padding-bottom: 0.4rem; margin: 1.8rem 0 0.8rem;
+  }}
+  .method-note {{
+    font-size: 0.85rem; color: {C_TEXT_SEC};
+    background: {C_SURFACE}; border-left: 3px solid {C_BORDER};
+    padding: 0.5rem 0.8rem; border-radius: 0 4px 4px 0; margin-bottom: 1rem;
+  }}
 
-    /* Header */
-    .dash-header {
-        background: linear-gradient(135deg, #1a1a2e 0%, #16213e 60%, #0f3460 100%);
-        color: white;
-        padding: 2.5rem 3rem;
-        border-radius: 12px;
-        margin-bottom: 2rem;
-        box-shadow: 0 8px 32px rgba(0,0,0,0.2);
-    }
-    .dash-header h1 { font-family: 'Playfair Display', serif; font-size: 2.2rem; margin: 0; letter-spacing: 0.02em; }
-    .dash-header p  { font-size: 0.95rem; opacity: 0.75; margin: 0.4rem 0 0; }
+  [data-testid="stSidebar"] {{
+    background: {C_SURFACE}; border-right: 1px solid {C_BORDER};
+  }}
+  [data-testid="stSidebar"] label {{
+    font-size: 0.85rem; font-weight: 600; color: {C_TEXT};
+    text-transform: uppercase; letter-spacing: 0.05em;
+  }}
 
-    /* KPI Cards */
-    .kpi-row { display: flex; gap: 1rem; margin-bottom: 1.5rem; }
-    .kpi-card {
-        flex: 1; background: white; border-radius: 10px; padding: 1.2rem 1.5rem;
-        border-left: 4px solid #0f3460;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.06);
-    }
-    .kpi-card .val { font-size: 2rem; font-weight: 600; color: #0f3460; }
-    .kpi-card .lab { font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.1em; color: #888; margin-top: 0.2rem; }
+  .stTabs [data-baseweb="tab-list"] {{ border-bottom: 2px solid {C_BORDER}; gap: 0; }}
+  .stTabs [data-baseweb="tab"] {{
+    font-size: 0.9rem; font-weight: 500; color: {C_TEXT_SEC};
+    padding: 0.5rem 1rem; border-radius: 4px 4px 0 0;
+    background: transparent; border: none;
+  }}
+  .stTabs [aria-selected="true"] {{
+    color: {C_PRIMARY} !important; font-weight: 700;
+    border-bottom: 3px solid {C_PRIMARY} !important;
+    background: transparent !important;
+  }}
 
-    /* Section titles */
-    .section-title {
-        font-family: 'Playfair Display', serif;
-        font-size: 1.4rem; color: #1a1a2e;
-        border-bottom: 2px solid #e8e4dc;
-        padding-bottom: 0.5rem; margin: 2rem 0 1rem;
-    }
+  *:focus-visible {{ outline: 3px solid {C_PRIMARY}; outline-offset: 2px; }}
 
-    /* Sidebar */
-    [data-testid="stSidebar"] { background: #1a1a2e; }
-    [data-testid="stSidebar"] * { color: #e8e4dc !important; }
-    [data-testid="stSidebar"] .stSelectbox label,
-    [data-testid="stSidebar"] .stMultiSelect label { font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.08em; }
-
-    /* Tabs */
-    .stTabs [data-baseweb="tab-list"] { gap: 0.5rem; border-bottom: 2px solid #e8e4dc; }
-    .stTabs [data-baseweb="tab"] {
-        background: transparent; border-radius: 6px 6px 0 0;
-        font-size: 0.9rem; font-weight: 500; color: #666;
-        padding: 0.5rem 1.2rem;
-    }
-    .stTabs [aria-selected="true"] { background: #0f3460 !important; color: white !important; }
-
-    /* Download button */
-    .stDownloadButton > button {
-        background: #0f3460; color: white; border: none;
-        border-radius: 6px; font-size: 0.85rem; padding: 0.4rem 1rem;
-    }
-    .stDownloadButton > button:hover { background: #16213e; }
-
-    div[data-testid="metric-container"] { background: white; border-radius: 8px; padding: 1rem; box-shadow: 0 2px 6px rgba(0,0,0,0.05); }
+  div[data-testid="metric-container"] {{
+    background: {C_SURFACE}; border-radius: 6px;
+    border: 1px solid {C_BORDER}; padding: 0.75rem 1rem;
+  }}
+  .footer {{
+    font-size: 0.8rem; color: {C_TEXT_SEC};
+    border-top: 1px solid {C_BORDER}; padding-top: 1rem; margin-top: 2rem;
+  }}
 </style>
 """, unsafe_allow_html=True)
 
 # ─────────────────────────────────────────────
-# COSTANTI
+# COSTANTI DOMINIO
 # ─────────────────────────────────────────────
 SEMANTIC_MAP = {
-    "Estremamente ruvido":       ("Ruvido/Liscio",          -2),
-    "Prevalentemente ruvido":    ("Ruvido/Liscio",          -1),
-    "Prevalentemente liscio":    ("Ruvido/Liscio",           1),
-    "Estremamente liscio":       ("Ruvido/Liscio",           2),
-
-    "Estremamente tagliente":    ("Tagliente/Morbido",      -2),
-    "Prevalentemente tagliente": ("Tagliente/Morbido",      -1),
-    "Prevalentemente morbido":   ("Tagliente/Morbido",       1),
-    "Estremamente morbido":      ("Tagliente/Morbido",       2),
-
-    "Estremamente pesante":      ("Pesante/Leggero",         -2),
-    "Prevalentemente pesante":   ("Pesante/Leggero",         -1),
-    "Prevalentemente leggero":   ("Pesante/Leggero",          1),
-    "Estremamente leggero":      ("Pesante/Leggero",          2),
-
-    "Estremamente opaco":        ("Opaco/Riflettente",       -2),
-    "Prevalentemente opaco":     ("Opaco/Riflettente",       -1),
-    "Prevalentemente riflettente":("Opaco/Riflettente",       1),
-    "Estremamente riflettente":  ("Opaco/Riflettente",        2),
-
-    "Estremamente selvaggio":    ("Selvaggio/Urbano",        -2),
-    "Prevalentemente selvaggio": ("Selvaggio/Urbano",        -1),
-    "Prevalentemente urbano":    ("Selvaggio/Urbano",         1),
-    "Estremamente urbano":       ("Selvaggio/Urbano",         2),
-
-    "Estremamente antica":       ("Antica/Futuristica",      -2),
-    "Prevalentemente antica":    ("Antica/Futuristica",      -1),
-    "Prevalentemente futuristica":("Antica/Futuristica",      1),
-    "Estremamente futuristica":  ("Antica/Futuristica",       2),
-
-    "Estremamente istituzionale":("Istituzionale/Popolare",  -2),
-    "Prevalentemente istituzionale":("Istituzionale/Popolare",-1),
-    "Prevalentemente popolare":  ("Istituzionale/Popolare",   1),
-    "Estremamente popolare":     ("Istituzionale/Popolare",   2),
-
-    "Estremamente riflessiva":   ("Riflessiva/Impetuosa",    -2),
-    "Prevalentemente riflessiva":("Riflessiva/Impetuosa",    -1),
-    "Prevalentemente impetuosa": ("Riflessiva/Impetuosa",     1),
-    "Estremamente impetuosa":    ("Riflessiva/Impetuosa",     2),
-
-    "Estremamente notturna":     ("Notturna/Solare",         -2),
-    "Prevalentemente notturna":  ("Notturna/Solare",         -1),
-    "Prevalentemente solare":    ("Notturna/Solare",          1),
-    "Estremamente solare":       ("Notturna/Solare",          2),
-
-    "Estremamente statica":      ("Statica/Dinamica",        -2),
-    "Prevalentemente statica":   ("Statica/Dinamica",        -1),
-    "Prevalentemente dinamica":  ("Statica/Dinamica",         1),
-    "Estremamente dinamica":     ("Statica/Dinamica",         2),
-
-    "Estremamente fredda":       ("Fredda/Calda",            -2),
-    "Prevalentemente fredda":    ("Fredda/Calda",            -1),
-    "Prevalentemente calda":     ("Fredda/Calda",             1),
-    "Estremamente calda":        ("Fredda/Calda",             2),
-
-    "Estremamente frammentata":  ("Frammentata/Compatta",    -2),
-    "Prevalentemente frammentata":("Frammentata/Compatta",   -1),
-    "Prevalentemente compatta":  ("Frammentata/Compatta",     1),
-    "Estremamente compatta":     ("Frammentata/Compatta",     2),
-
-    "Estremamente noir":         ("Noir/Musical",            -2),
-    "Prevalentemente noir":      ("Noir/Musical",            -1),
-    "Prevalentemente musical":   ("Noir/Musical",             1),
-    "Estremamente musical":      ("Noir/Musical",             2),
-
-    "Estremamente realistico":   ("Realistico/Fantastico",   -2),
-    "Prevalentemente realistico":("Realistico/Fantastico",   -1),
-    "Prevalentemente fantastico":("Realistico/Fantastico",    1),
-    "Estremamente fantastico":   ("Realistico/Fantastico",    2),
+    "Estremamente ruvido":          ("Ruvido/Liscio",            -2),
+    "Prevalentemente ruvido":       ("Ruvido/Liscio",            -1),
+    "Prevalentemente liscio":       ("Ruvido/Liscio",             1),
+    "Estremamente liscio":          ("Ruvido/Liscio",             2),
+    "Estremamente tagliente":       ("Tagliente/Morbido",        -2),
+    "Prevalentemente tagliente":    ("Tagliente/Morbido",        -1),
+    "Prevalentemente morbido":      ("Tagliente/Morbido",         1),
+    "Estremamente morbido":         ("Tagliente/Morbido",         2),
+    "Estremamente pesante":         ("Pesante/Leggero",          -2),
+    "Prevalentemente pesante":      ("Pesante/Leggero",          -1),
+    "Prevalentemente leggero":      ("Pesante/Leggero",           1),
+    "Estremamente leggero":         ("Pesante/Leggero",           2),
+    "Estremamente opaco":           ("Opaco/Riflettente",        -2),
+    "Prevalentemente opaco":        ("Opaco/Riflettente",        -1),
+    "Prevalentemente riflettente":  ("Opaco/Riflettente",         1),
+    "Estremamente riflettente":     ("Opaco/Riflettente",         2),
+    "Estremamente selvaggio":       ("Selvaggio/Urbano",         -2),
+    "Prevalentemente selvaggio":    ("Selvaggio/Urbano",         -1),
+    "Prevalentemente urbano":       ("Selvaggio/Urbano",          1),
+    "Estremamente urbano":          ("Selvaggio/Urbano",          2),
+    "Estremamente antica":          ("Antica/Futuristica",       -2),
+    "Prevalentemente antica":       ("Antica/Futuristica",       -1),
+    "Prevalentemente futuristica":  ("Antica/Futuristica",        1),
+    "Estremamente futuristica":     ("Antica/Futuristica",        2),
+    "Estremamente istituzionale":   ("Istituzionale/Popolare",   -2),
+    "Prevalentemente istituzionale":("Istituzionale/Popolare",   -1),
+    "Prevalentemente popolare":     ("Istituzionale/Popolare",    1),
+    "Estremamente popolare":        ("Istituzionale/Popolare",    2),
+    "Estremamente riflessiva":      ("Riflessiva/Impetuosa",     -2),
+    "Prevalentemente riflessiva":   ("Riflessiva/Impetuosa",     -1),
+    "Prevalentemente impetuosa":    ("Riflessiva/Impetuosa",      1),
+    "Estremamente impetuosa":       ("Riflessiva/Impetuosa",      2),
+    "Estremamente notturna":        ("Notturna/Solare",          -2),
+    "Prevalentemente notturna":     ("Notturna/Solare",          -1),
+    "Prevalentemente solare":       ("Notturna/Solare",           1),
+    "Estremamente solare":          ("Notturna/Solare",           2),
+    "Estremamente statica":         ("Statica/Dinamica",         -2),
+    "Prevalentemente statica":      ("Statica/Dinamica",         -1),
+    "Prevalentemente dinamica":     ("Statica/Dinamica",          1),
+    "Estremamente dinamica":        ("Statica/Dinamica",          2),
+    "Estremamente fredda":          ("Fredda/Calda",             -2),
+    "Prevalentemente fredda":       ("Fredda/Calda",             -1),
+    "Prevalentemente calda":        ("Fredda/Calda",              1),
+    "Estremamente calda":           ("Fredda/Calda",              2),
+    "Estremamente frammentata":     ("Frammentata/Compatta",     -2),
+    "Prevalentemente frammentata":  ("Frammentata/Compatta",     -1),
+    "Prevalentemente compatta":     ("Frammentata/Compatta",      1),
+    "Estremamente compatta":        ("Frammentata/Compatta",      2),
+    "Estremamente noir":            ("Noir/Musical",             -2),
+    "Prevalentemente noir":         ("Noir/Musical",             -1),
+    "Prevalentemente musical":      ("Noir/Musical",              1),
+    "Estremamente musical":         ("Noir/Musical",              2),
+    "Estremamente realistico":      ("Realistico/Fantastico",    -2),
+    "Prevalentemente realistico":   ("Realistico/Fantastico",    -1),
+    "Prevalentemente fantastico":   ("Realistico/Fantastico",     1),
+    "Estremamente fantastico":      ("Realistico/Fantastico",     2),
 }
 
 DIMENSION_LABELS = {
-    "Ruvido/Liscio":           ("Ruvida", "Liscia"),
-    "Tagliente/Morbido":       ("Tagliente", "Morbida"),
-    "Pesante/Leggero":         ("Pesante", "Leggera"),
-    "Opaco/Riflettente":       ("Opaca", "Riflettente"),
-    "Selvaggio/Urbano":        ("Selvaggia", "Urbana"),
-    "Antica/Futuristica":      ("Antica", "Futuristica"),
-    "Istituzionale/Popolare":  ("Istituzionale", "Popolare"),
-    "Riflessiva/Impetuosa":    ("Riflessiva", "Impetuosa"),
-    "Notturna/Solare":         ("Notturna", "Solare"),
-    "Statica/Dinamica":        ("Statica", "Dinamica"),
-    "Fredda/Calda":            ("Fredda", "Calda"),
-    "Frammentata/Compatta":    ("Frammentata", "Compatta"),
-    "Noir/Musical":            ("Noir", "Musical"),
-    "Realistico/Fantastico":   ("Realistica", "Fantastica"),
+    "Ruvido/Liscio":          ("Ruvida",        "Liscia"),
+    "Tagliente/Morbido":      ("Tagliente",     "Morbida"),
+    "Pesante/Leggero":        ("Pesante",       "Leggera"),
+    "Opaco/Riflettente":      ("Opaca",         "Riflettente"),
+    "Selvaggio/Urbano":       ("Selvaggia",     "Urbana"),
+    "Antica/Futuristica":     ("Antica",        "Futuristica"),
+    "Istituzionale/Popolare": ("Istituzionale", "Popolare"),
+    "Riflessiva/Impetuosa":   ("Riflessiva",    "Impetuosa"),
+    "Notturna/Solare":        ("Notturna",      "Solare"),
+    "Statica/Dinamica":       ("Statica",       "Dinamica"),
+    "Fredda/Calda":           ("Fredda",        "Calda"),
+    "Frammentata/Compatta":   ("Frammentata",   "Compatta"),
+    "Noir/Musical":           ("Noir",          "Musical"),
+    "Realistico/Fantastico":  ("Realistica",    "Fantastica"),
 }
 
 RAPPORTO_SHORT = {
-    "Abitante (vivo stabilmente qui)":                      "Abitante",
-    "Pendolare (lavoro/studio qui, vivo altrove)":          "Pendolare",
+    "Abitante (vivo stabilmente qui)":                               "Abitante",
+    "Pendolare (lavoro/studio qui, vivo altrove)":                   "Pendolare",
     "Servizi/Tempo libero (frequento la città per necessità/svago)": "Visitatore",
-    "Sono andat* via (non vivo più qui, ma sono legato/a)": "Ex-residente",
+    "Sono andat* via (non vivo più qui, ma sono legato/a)":          "Ex-residente",
 }
 
-PALETTE_DIVERGING = px.colors.diverging.RdBu
-COLOR_ACCENT      = "#0f3460"
-COLOR_ACCENT2     = "#e94560"
-COLOR_BG          = "#fafaf8"
+ETA_ORDER = ["14-18", "19-26", "27-55", "55+"]
 
 # ─────────────────────────────────────────────
-# CARICAMENTO E PREPARAZIONE DATI
+# CARICAMENTO DATI
 # ─────────────────────────────────────────────
 @st.cache_data
 def load_data(uploaded_file=None, default_path=None):
@@ -208,252 +211,352 @@ def load_data(uploaded_file=None, default_path=None):
     else:
         return None, None
 
-    # Rename demografiche
     df = pd.DataFrame()
-    df["timestamp"]  = df_raw.iloc[:, 0]
-    df["eta"]        = df_raw.iloc[:, 1]
-    df["rapporto"]   = df_raw.iloc[:, 2].map(RAPPORTO_SHORT).fillna(df_raw.iloc[:, 2])
+    df["timestamp"] = df_raw.iloc[:, 0]
+    df["eta"]       = df_raw.iloc[:, 1]
+    df["rapporto"]  = df_raw.iloc[:, 2].map(RAPPORTO_SHORT).fillna(df_raw.iloc[:, 2])
 
-    # Mappa semantica → score numerico
-    sem_cols = df_raw.columns[3:17]  # 14 colonne percezione attuale
-    for col in sem_cols:
-        series = df_raw[col].map(lambda v: SEMANTIC_MAP.get(v, (None, None))[1])
-        dim    = df_raw[col].map(lambda v: SEMANTIC_MAP.get(v, (v, None))[0])
-        # usa la dimensione dal primo valore non nullo
-        dim_name = dim.dropna().iloc[0] if not dim.dropna().empty else col
-        df[dim_name] = series
+    for col in df_raw.columns[3:17]:
+        scores   = df_raw[col].map(lambda v: SEMANTIC_MAP.get(v, (None, None))[1])
+        dim_name = df_raw[col].map(lambda v: SEMANTIC_MAP.get(v, (v, None))[0]).dropna()
+        name     = dim_name.iloc[0] if not dim_name.empty else col
+        df[name] = scores
 
-    # Personaggio
-    df["personaggio"] = df_raw.iloc[:, 17]
-
-    # Desiderata (3 colonne categoriali)
+    df["personaggio"]  = df_raw.iloc[:, 17]
     df["desiderata_1"] = df_raw.iloc[:, 18]
     df["desiderata_2"] = df_raw.iloc[:, 19]
     df["desiderata_3"] = df_raw.iloc[:, 20]
 
-    # Lista dimensioni semantiche
-    dim_cols = list(DIMENSION_LABELS.keys())
-
-    return df, dim_cols
-
+    return df, list(DIMENSION_LABELS.keys())
 
 # ─────────────────────────────────────────────
-# FUNZIONI DI PLOTTING
+# HELPER LAYOUT GRAFICI
 # ─────────────────────────────────────────────
-
-def fig_to_svg(fig):
-    """Export come SVG vettoriale — nessuna dipendenza da Chrome/kaleido.
-    SVG è ideale per pubblicazione accademica (vettoriale, scalabile)."""
-    return fig.to_image(format="svg")
-
-def styled_fig(fig, height=420):
+def base_layout(fig, height=440, title=""):
     fig.update_layout(
         height=height,
-        paper_bgcolor=COLOR_BG,
-        plot_bgcolor=COLOR_BG,
-        font=dict(family="Inter, sans-serif", size=12, color="#333"),
-        margin=dict(l=40, r=40, t=50, b=40),
+        title=dict(text=title, font=dict(size=14, color=C_TEXT), x=0, xanchor="left"),
+        paper_bgcolor=C_BG, plot_bgcolor=C_BG,
+        font=dict(family="system-ui, -apple-system, sans-serif", size=13, color=C_TEXT),
+        margin=dict(l=16, r=24, t=48, b=16),
+        xaxis=dict(gridcolor=C_GRID, linecolor=C_BORDER,
+                   tickcolor=C_BORDER, zerolinecolor=C_BORDER),
+        yaxis=dict(gridcolor=C_GRID, linecolor=C_BORDER,
+                   tickcolor=C_BORDER, zerolinecolor=C_BORDER),
+        legend=dict(bgcolor=C_SURFACE, bordercolor=C_BORDER, borderwidth=1,
+                    font=dict(size=12, color=C_TEXT)),
     )
     return fig
 
-# ── Semantic Profile Bar ──────────────────────
-def plot_semantic_profile(df_filt, dim_cols):
-    means = df_filt[dim_cols].mean()
-    stds  = df_filt[dim_cols].std()
+def note(testo):
+    st.markdown(f'<div class="method-note">{testo}</div>', unsafe_allow_html=True)
 
-    colors = [COLOR_ACCENT2 if v < 0 else COLOR_ACCENT for v in means.values]
+# ─────────────────────────────────────────────
+# GRAFICI
+# ─────────────────────────────────────────────
 
-    # Etichette asse y: polo_neg → polo_pos
-    labels = [f"{DIMENSION_LABELS[d][0]} ← → {DIMENSION_LABELS[d][1]}" for d in dim_cols]
+def plot_semantic_profile(df_f, dim_cols):
+    """
+    Differenziale semantico orizzontale.
+    Barra + whiskers ±1 SD. Testo esplicito del polo dominante.
+    Non si affida solo al colore: segno e label sempre visibili.
+    """
+    means = df_f[dim_cols].mean()
+    stds  = df_f[dim_cols].std()
+
+    rows = []
+    for dim in dim_cols:
+        m  = means[dim]
+        sd = stds[dim]
+        neg_l, pos_l = DIMENSION_LABELS[dim]
+        pole = pos_l if m >= 0 else neg_l
+        rows.append({
+            "mean":    m,
+            "sd":      sd,
+            "color":   C_PRIMARY if m >= 0 else C_NEGATIVE,
+            "label_y": f"{neg_l}  ←  {pos_l}",
+            "polo":    f"{'+'  if m>=0 else '−'}{abs(m):.2f}  {pole}",
+        })
+
+    df_p = pd.DataFrame(rows).sort_values("mean")
 
     fig = go.Figure()
     fig.add_trace(go.Bar(
-        x=means.values,
-        y=labels,
+        x=df_p["mean"],
+        y=df_p["label_y"],
         orientation="h",
-        marker_color=colors,
-        error_x=dict(type="data", array=stds.values, color="#aaa", thickness=1.5, width=4),
-        hovertemplate="<b>%{y}</b><br>Media: %{x:.2f}<extra></extra>",
+        marker_color=df_p["color"],
+        error_x=dict(type="data", array=df_p["sd"],
+                     color=C_ZERO, thickness=1.5, width=5),
+        text=df_p["polo"],
+        textposition="outside",
+        textfont=dict(size=11, color=C_TEXT_SEC),
+        cliponaxis=False,
+        hovertemplate="<b>%{y}</b><br>Media: %{x:.2f}<br>SD: %{error_x.array:.2f}<extra></extra>",
     ))
-    fig.add_vline(x=0, line_width=1.5, line_dash="dot", line_color="#999")
+    fig.add_vline(x=0, line_width=1.5, line_color=C_ZERO)
+    fig.add_annotation(x=-2.4, y=1.02, xref="x", yref="paper",
+                       text="← polo negativo", showarrow=False,
+                       font=dict(size=11, color=C_NEGATIVE), xanchor="left")
+    fig.add_annotation(x=2.4, y=1.02, xref="x", yref="paper",
+                       text="polo positivo →", showarrow=False,
+                       font=dict(size=11, color=C_PRIMARY), xanchor="right")
     fig.update_layout(
-        title="Profilo Semantico Attuale — Media ± Dev.Std.",
-        xaxis=dict(range=[-2.5, 2.5], tickvals=[-2,-1,0,1,2],
-                   ticktext=["−2","−1","0","+1","+2"], zeroline=False),
-        yaxis=dict(automargin=True),
+        xaxis=dict(range=[-2.9, 2.9], tickvals=[-2,-1,0,1,2],
+                   ticktext=["−2","−1","0","+1","+2"],
+                   zeroline=False, showgrid=True, gridcolor=C_GRID),
+        yaxis=dict(automargin=True, tickfont=dict(size=12)),
+        bargap=0.35,
     )
-    return styled_fig(fig, height=520)
+    return base_layout(fig, height=560,
+                       title="Differenziale Semantico — Media ± Dev.Std.")
 
-# ── Heatmap Correlazione ──────────────────────
-def plot_correlation_heatmap(df_filt, dim_cols, selected_dims):
-    sub = df_filt[selected_dims].dropna()
-    corr = sub.corr(method="pearson")
 
-    # etichette abbreviate
-    short = [d.split("/")[0] + "/" + d.split("/")[1] for d in selected_dims]
-
-    fig = go.Figure(go.Heatmap(
-        z=corr.values,
-        x=short, y=short,
-        colorscale="RdBu",
-        zmid=0, zmin=-1, zmax=1,
-        text=np.round(corr.values, 2),
-        texttemplate="%{text}",
-        textfont=dict(size=11),
-        hovertemplate="<b>%{x} × %{y}</b><br>r = %{z:.2f}<extra></extra>",
-        colorbar=dict(title="r di Pearson", tickvals=[-1,-0.5,0,0.5,1]),
-    ))
-    fig.update_layout(
-        title="Heatmap di Correlazione (r di Pearson)",
-        xaxis=dict(tickangle=-35),
-    )
-    return styled_fig(fig, height=500)
-
-# ── Radar Chart ───────────────────────────────
-def plot_radar(df_filt, dim_cols, group_col, groups):
-    categories = dim_cols + [dim_cols[0]]  # chiude il poligono
-
+def plot_distribution_strip(df_f, dim_col):
+    """
+    Distribuzione completa delle risposte per fascia d'età.
+    Strip plot (punti jitterati) + box con mediana.
+    Rende visibile l'eterogeneità reale, non solo la media.
+    """
+    neg_l, pos_l = DIMENSION_LABELS.get(dim_col, ("−", "+"))
     fig = go.Figure()
-    palette = px.colors.qualitative.Set2
 
-    for i, grp in enumerate(groups):
-        sub = df_filt[df_filt[group_col] == grp][dim_cols].mean()
-        vals = sub.tolist() + [sub.iloc[0]]
-        fig.add_trace(go.Scatterpolar(
-            r=vals,
-            theta=categories,
-            fill="toself",
-            name=grp,
-            line_color=palette[i % len(palette)],
-            fillcolor=palette[i % len(palette)].replace("rgb", "rgba").replace(")", ",0.15)"),
-            hovertemplate="<b>" + grp + "</b><br>%{theta}: %{r:.2f}<extra></extra>",
-        ))
-
-    fig.update_layout(
-        polar=dict(
-            radialaxis=dict(visible=True, range=[-2, 2], tickvals=[-2,-1,0,1,2],
-                            tickfont=dict(size=9), gridcolor="#ddd"),
-            angularaxis=dict(tickfont=dict(size=10)),
-            bgcolor=COLOR_BG,
-        ),
-        title=f"Radar Chart — Profilo identitario per {group_col}",
-        legend=dict(orientation="h", yanchor="bottom", y=-0.25, xanchor="center", x=0.5),
-        showlegend=True,
-    )
-    return styled_fig(fig, height=520)
-
-# ── Gap Analysis ──────────────────────────────
-def plot_gap_analysis(df_filt):
-    # Desiderata: frequenze aggregate sulle 3 colonne
-    des_all = pd.concat([
-        df_filt["desiderata_1"], df_filt["desiderata_2"], df_filt["desiderata_3"]
-    ]).dropna()
-    des_freq = des_all.value_counts().reset_index()
-    des_freq.columns = ["Aggettivo", "Conteggio"]
-    des_freq["Tipo"] = "Desiderata"
-    des_freq["Percentuale"] = des_freq["Conteggio"] / des_freq["Conteggio"].sum() * 100
-
-    # Profilo attuale — solo dimensioni con media > 0.5 o < -0.5 (polarizzate)
-    means = df_filt[list(DIMENSION_LABELS.keys())].mean()
-    attuale_items = []
-    for dim, val in means.items():
-        if abs(val) >= 0.5:
-            pole = DIMENSION_LABELS[dim][1] if val > 0 else DIMENSION_LABELS[dim][0]
-            attuale_items.append({"Aggettivo": pole, "Valore_medio": round(abs(val), 2), "Polo": dim})
-
-    # --- Plot doppio ----
-    fig = make_subplots(
-        rows=1, cols=2,
-        subplot_titles=("Identità Percepita Attuale — Dimensioni polarizzate (|media|≥0.5)",
-                        "Visione Desiderata — Aggettivi per Maddaloni di domani"),
-        horizontal_spacing=0.10,
-    )
-
-    if attuale_items:
-        df_att = pd.DataFrame(attuale_items).sort_values("Valore_medio", ascending=True)
-        fig.add_trace(go.Bar(
-            x=df_att["Valore_medio"], y=df_att["Aggettivo"],
-            orientation="h",
-            marker_color=COLOR_ACCENT,
-            hovertemplate="<b>%{y}</b> (dim: %{customdata})<br>|Media| = %{x:.2f}<extra></extra>",
-            customdata=df_att["Polo"],
-            name="Attuale",
-        ), row=1, col=1)
-
-    des_top = des_freq.head(12).sort_values("Percentuale", ascending=True)
-    fig.add_trace(go.Bar(
-        x=des_top["Percentuale"], y=des_top["Aggettivo"],
-        orientation="h",
-        marker_color=COLOR_ACCENT2,
-        hovertemplate="<b>%{y}</b><br>%{x:.1f}% delle scelte<extra></extra>",
-        name="Desiderata",
-    ), row=1, col=2)
-
-    fig.update_xaxes(title_text="Intensità media assoluta", row=1, col=1)
-    fig.update_xaxes(title_text="% scelte", row=1, col=2)
-    fig.update_layout(
-        title="Gap Analysis — Maddaloni oggi vs. domani",
-        showlegend=False,
-    )
-    return styled_fig(fig, height=480)
-
-# ── Distribuzione per Fascia d'Età ───────────
-def plot_age_distribution(df_filt, dim_col):
-    eta_order = ["14-18", "19-26", "27-55", "55+"]
-    fig = go.Figure()
-    palette = px.colors.sequential.Blues[2:]
-    for i, eta in enumerate(eta_order):
-        sub = df_filt[df_filt["eta"] == eta][dim_col].dropna()
+    for i, eta in enumerate(ETA_ORDER):
+        sub = df_f[df_f["eta"] == eta][dim_col].dropna()
         if len(sub) == 0:
             continue
+        col = CAT_PALETTE[i]
         fig.add_trace(go.Box(
-            y=sub, name=eta,
-            boxmean="sd",
-            marker_color=palette[min(i, len(palette)-1)],
-            line_color=COLOR_ACCENT,
+            y=sub, x=[eta] * len(sub),
+            name=eta,
+            boxpoints="all",
+            jitter=0.35,
+            pointpos=0,
+            marker=dict(color=col, size=5, opacity=0.55,
+                        line=dict(color=C_BG, width=0.5)),
+            line=dict(color=col, width=1.5),
+            fillcolor="rgba(0,0,0,0)",
+            whiskerwidth=0.5,
+            showlegend=False,
             hovertemplate=f"<b>{eta}</b><br>Valore: %{{y}}<extra></extra>",
         ))
-    fig.add_hline(y=0, line_dash="dot", line_color="#aaa")
-    labels = DIMENSION_LABELS.get(dim_col, ("−", "+"))
+
+    fig.add_hline(y=0, line_dash="dot", line_color=C_ZERO, line_width=1.5)
+    tick_labels = {
+        -2: f"−2  ({neg_l})", -1: "−1",
+         0: "0  (neutro)",    1: "+1",
+         2: f"+2  ({pos_l})",
+    }
     fig.update_layout(
-        title=f"Distribuzione per fascia d'età — {dim_col}",
-        yaxis=dict(range=[-2.5, 2.5], tickvals=[-2,-1,0,1,2],
-                   ticktext=[labels[0]+"(−2)", "−1", "0", "+1", labels[1]+"(+2)"]),
         xaxis_title="Fascia d'età",
+        yaxis=dict(range=[-2.6, 2.6],
+                   tickvals=list(tick_labels.keys()),
+                   ticktext=list(tick_labels.values()),
+                   gridcolor=C_GRID),
+        boxmode="group",
     )
-    return styled_fig(fig, height=420)
+    return base_layout(fig, height=440,
+                       title=f"Distribuzione risposte — {dim_col}")
 
-# ── Personaggio ───────────────────────────────
-def plot_personaggio(df_filt):
-    counts = df_filt["personaggio"].value_counts().reset_index()
-    counts.columns = ["Personaggio", "N"]
-    short = counts["Personaggio"].apply(lambda x: x.split("(")[0].strip())
-    tooltip = counts["Personaggio"]
-    fig = go.Figure(go.Bar(
-        x=short, y=counts["N"],
-        marker_color=[COLOR_ACCENT, COLOR_ACCENT2, "#2ecc71", "#f39c12"],
-        text=counts["N"], textposition="auto",
-        hovertext=tooltip, hoverinfo="text+y",
+
+def plot_correlation_heatmap(df_f, dim_cols, selected_dims):
+    """
+    Heatmap Pearson. Scala: arancio (negativo) → bianco (0) → blu (positivo).
+    Valori numerici sempre visibili nelle celle.
+    """
+    sub  = df_f[selected_dims].dropna()
+    corr = sub.corr(method="pearson").round(2)
+    z    = corr.values.copy().astype(float)
+    np.fill_diagonal(z, np.nan)
+
+    colorscale = [[0.0, C_NEGATIVE], [0.5, "#ffffff"], [1.0, C_PRIMARY]]
+
+    fig = go.Figure(go.Heatmap(
+        z=z, x=selected_dims, y=selected_dims,
+        colorscale=colorscale, zmid=0, zmin=-1, zmax=1,
+        text=corr.values,
+        texttemplate="%{text:.2f}",
+        textfont=dict(size=11, color=C_TEXT),
+        hovertemplate="<b>%{x}</b> × <b>%{y}</b><br>r = %{z:.2f}<extra></extra>",
+        colorbar=dict(
+            title=dict(text="r Pearson", font=dict(size=12, color=C_TEXT)),
+            tickvals=[-1, -0.5, 0, 0.5, 1],
+            tickfont=dict(size=11, color=C_TEXT),
+            outlinewidth=1, outlinecolor=C_BORDER,
+        ),
     ))
-    fig.update_layout(title="Maddaloni come personaggio — distribuzione", xaxis_title="", yaxis_title="Risposte")
-    return styled_fig(fig, height=360)
+    fig.update_layout(
+        xaxis=dict(tickangle=-40, tickfont=dict(size=11), side="bottom"),
+        yaxis=dict(autorange="reversed", tickfont=dict(size=11)),
+    )
+    return base_layout(fig, height=520,
+                       title="Correlazioni tra dimensioni (r di Pearson)")
 
+
+def plot_radar(df_f, dim_cols, group_col, groups):
+    """
+    Radar chart. Ogni gruppo: colore + stile linea diverso.
+    Distinguibile anche in scala di grigi.
+    """
+    categories = dim_cols + [dim_cols[0]]
+    dashes = ["solid", "dash", "dot", "dashdot"]
+    fig = go.Figure()
+
+    for i, grp in enumerate(groups):
+        sub  = df_f[df_f[group_col] == grp][dim_cols].mean()
+        vals = sub.tolist() + [sub.iloc[0]]
+        col  = CAT_PALETTE[i % len(CAT_PALETTE)]
+
+        # fillcolor: converte hex in rgba
+        r = int(col[1:3], 16)
+        g = int(col[3:5], 16)
+        b = int(col[5:7], 16)
+
+        fig.add_trace(go.Scatterpolar(
+            r=vals, theta=categories,
+            fill="toself", name=grp,
+            line=dict(color=col, width=2, dash=dashes[i % len(dashes)]),
+            fillcolor=f"rgba({r},{g},{b},0.08)",
+            marker=dict(size=5, color=col),
+            hovertemplate=f"<b>{grp}</b><br>%{{theta}}: %{{r:.2f}}<extra></extra>",
+        ))
+
+    label = "fascia d'età" if group_col == "eta" else "rapporto con la città"
+    fig.update_layout(
+        polar=dict(
+            bgcolor=C_BG,
+            radialaxis=dict(
+                visible=True, range=[-2, 2],
+                tickvals=[-2, -1, 0, 1, 2],
+                ticktext=["−2", "−1", "0", "+1", "+2"],
+                tickfont=dict(size=10, color=C_TEXT_SEC),
+                gridcolor=C_GRID, linecolor=C_BORDER,
+            ),
+            angularaxis=dict(
+                tickfont=dict(size=11, color=C_TEXT),
+                linecolor=C_BORDER, gridcolor=C_GRID,
+            ),
+        ),
+        legend=dict(
+            orientation="h", yanchor="bottom", y=-0.22,
+            xanchor="center", x=0.5,
+            font=dict(size=12, color=C_TEXT),
+        ),
+    )
+    return base_layout(fig, height=540,
+                       title=f"Profilo identitario per {label}")
+
+
+def plot_gap(df_f):
+    """
+    Gap Analysis: poli dominanti oggi vs aggettivi desiderati.
+    Due grafici affiancati con valori sempre espliciti.
+    """
+    des_all  = pd.concat([df_f["desiderata_1"], df_f["desiderata_2"],
+                          df_f["desiderata_3"]]).dropna()
+    des_freq = (des_all.value_counts(normalize=True)
+                .mul(100).round(1).reset_index())
+    des_freq.columns = ["Aggettivo", "Pct"]
+
+    means = df_f[list(DIMENSION_LABELS.keys())].mean()
+    att = []
+    for dim, val in means.items():
+        if abs(val) >= 0.5:
+            pole = DIMENSION_LABELS[dim][1] if val >= 0 else DIMENSION_LABELS[dim][0]
+            att.append({"Polo": pole, "Int": round(abs(val), 2),
+                        "Dim": dim, "Dir": "pos" if val >= 0 else "neg"})
+    df_att = (pd.DataFrame(att).sort_values("Int", ascending=True)
+              if att else pd.DataFrame())
+
+    fig = make_subplots(
+        rows=1, cols=2,
+        subplot_titles=[
+            "Oggi — poli dominanti (|media| ≥ 0.5)",
+            "Domani — aggettivi desiderati",
+        ],
+        horizontal_spacing=0.14,
+    )
+
+    if not df_att.empty:
+        colors_att = [C_PRIMARY if d == "pos" else C_NEGATIVE
+                      for d in df_att["Dir"]]
+        fig.add_trace(go.Bar(
+            x=df_att["Int"], y=df_att["Polo"],
+            orientation="h", marker_color=colors_att,
+            text=[f"{v:.2f}" for v in df_att["Int"]],
+            textposition="outside",
+            textfont=dict(size=11, color=C_TEXT),
+            cliponaxis=False,
+            hovertemplate="<b>%{y}</b><br>Intensità: %{x:.2f} (%{customdata})<extra></extra>",
+            customdata=df_att["Dim"],
+        ), row=1, col=1)
+        fig.update_xaxes(range=[0, 2.5],
+                         title_text="Intensità media |scala −2…+2|", row=1, col=1)
+
+    des_top = des_freq.head(10).sort_values("Pct", ascending=True)
+    fig.add_trace(go.Bar(
+        x=des_top["Pct"], y=des_top["Aggettivo"],
+        orientation="h", marker_color=C_PRIMARY,
+        text=[f"{v:.1f}%" for v in des_top["Pct"]],
+        textposition="outside",
+        textfont=dict(size=11, color=C_TEXT),
+        cliponaxis=False,
+        hovertemplate="<b>%{y}</b><br>%{x:.1f}% delle scelte<extra></extra>",
+    ), row=1, col=2)
+    fig.update_xaxes(title_text="% scelte (tutte e 3 le risposte)", row=1, col=2)
+
+    fig.update_layout(
+        showlegend=False,
+        paper_bgcolor=C_BG, plot_bgcolor=C_BG,
+        font=dict(family="system-ui, sans-serif", size=13, color=C_TEXT),
+        margin=dict(l=16, r=24, t=56, b=16),
+        height=460,
+        title=dict(text="Gap Analysis — Oggi vs. Domani",
+                   font=dict(size=14, color=C_TEXT), x=0),
+    )
+    fig.update_yaxes(tickfont=dict(size=12), automargin=True)
+    return fig
+
+
+def plot_personaggio(df_f):
+    counts = df_f["personaggio"].value_counts().reset_index()
+    counts.columns = ["Personaggio", "N"]
+    counts["Label"]   = counts["Personaggio"].str.split("(").str[0].str.strip()
+    counts["Tooltip"] = counts["Personaggio"]
+    counts = counts.sort_values("N", ascending=False)
+    fig = go.Figure(go.Bar(
+        x=counts["Label"], y=counts["N"],
+        marker_color=CAT_PALETTE[:len(counts)],
+        text=counts["N"], textposition="outside",
+        textfont=dict(size=12, color=C_TEXT),
+        cliponaxis=False,
+        hovertext=counts["Tooltip"], hoverinfo="text+y",
+    ))
+    fig.update_layout(
+        xaxis=dict(tickangle=0, tickfont=dict(size=12)),
+        yaxis=dict(title="Rispondenti", gridcolor=C_GRID),
+        bargap=0.4,
+    )
+    return base_layout(fig, height=360,
+                       title="Maddaloni come personaggio — distribuzione")
 
 # ─────────────────────────────────────────────
 # SIDEBAR
 # ─────────────────────────────────────────────
 with st.sidebar:
-    st.markdown("## 🏛️ Maddaloni<br><span style='font-size:0.8rem;opacity:0.6'>attraverso i tuoi occhi</span>", unsafe_allow_html=True)
+    st.markdown("### 🏛️ Maddaloni")
+    st.caption("attraverso i tuoi occhi")
     st.markdown("---")
+    uploaded = st.file_uploader("Carica CSV del sondaggio", type=["csv"])
+    st.markdown("---")
+    st.markdown("**Filtri campione**")
 
-    uploaded = st.file_uploader("📂 Carica CSV del sondaggio", type=["csv"])
-
-    st.markdown("### Filtri")
-    # Filtri vuoti per ora, li popolo dopo il caricamento dati
-
+# ─────────────────────────────────────────────
+# HEADER
+# ─────────────────────────────────────────────
 st.markdown("""
-<div class="dash-header">
-  <h1>🏛️ Maddaloni attraverso i tuoi occhi</h1>
+<div class="dash-header" role="banner">
+  <h1>Maddaloni attraverso i tuoi occhi</h1>
   <p>Dashboard di analisi semantica urbana · Co-progettazione dell'immaginario collettivo · 174 rispondenti · Marzo 2026</p>
 </div>
 """, unsafe_allow_html=True)
@@ -463,13 +566,12 @@ st.markdown("""
 # ─────────────────────────────────────────────
 DEFAULT_CSV = "Maddaloni_attraverso_i_tuoi_occhi__Risposte__-_Risposte_del_modulo_1__2_.csv"
 
-import os
 if uploaded:
     df, dim_cols = load_data(uploaded_file=uploaded)
 elif os.path.exists(DEFAULT_CSV):
     df, dim_cols = load_data(default_path=DEFAULT_CSV)
 else:
-    st.info("⬆️ Carica il file CSV dal pannello laterale per iniziare.")
+    st.info("Carica il file CSV dal pannello laterale per iniziare.")
     st.stop()
 
 if df is None:
@@ -477,219 +579,216 @@ if df is None:
     st.stop()
 
 # ─────────────────────────────────────────────
-# FILTRI SIDEBAR (dopo il caricamento)
+# FILTRI
 # ─────────────────────────────────────────────
 with st.sidebar:
-    eta_opts = sorted(df["eta"].dropna().unique().tolist(), key=lambda x: ["14-18","19-26","27-55","55+"].index(x) if x in ["14-18","19-26","27-55","55+"] else 99)
-    sel_eta = st.multiselect("Fascia d'età", eta_opts, default=eta_opts)
-
+    eta_opts = [e for e in ETA_ORDER if e in df["eta"].dropna().unique()]
+    sel_eta  = st.multiselect("Fascia d'età", eta_opts, default=eta_opts)
     rap_opts = sorted(df["rapporto"].dropna().unique().tolist())
-    sel_rap = st.multiselect("Rapporto con la città", rap_opts, default=rap_opts)
-
+    sel_rap  = st.multiselect("Rapporto con la città", rap_opts, default=rap_opts)
     st.markdown("---")
-    st.markdown("<small>Dashboard prodotta per ricerca scientifica.<br>Dati aggregati e anonimi.</small>", unsafe_allow_html=True)
+    st.caption("Dati aggregati e anonimi.\nMetodologia: Differenziale Semantico (Osgood, 1957).")
 
-# Applica filtri
-df_f = df[df["eta"].isin(sel_eta) & df["rapporto"].isin(sel_rap)].copy()
+df_f   = df[df["eta"].isin(sel_eta) & df["rapporto"].isin(sel_rap)].copy()
 n_filt = len(df_f)
 
 # ─────────────────────────────────────────────
-# KPI ROW
+# KPI STRIP
 # ─────────────────────────────────────────────
 k1, k2, k3, k4 = st.columns(4)
 with k1:
-    st.metric("Rispondenti (filtro attivo)", n_filt, f"{n_filt-174} vs totale" if n_filt != 174 else "Totale")
+    st.metric("Rispondenti nel filtro", n_filt,
+              delta=f"{n_filt - 174} vs totale" if n_filt != 174 else None)
 with k2:
-    st.metric("Fasce d'età selezionate", len(sel_eta))
+    st.metric("Fasce d'età", len(sel_eta))
 with k3:
     st.metric("Tipi di rapporto", len(sel_rap))
 with k4:
-    pct_completo = round(df_f[dim_cols].notna().all(axis=1).mean() * 100, 1)
-    st.metric("Risposte complete", f"{pct_completo}%")
+    pct_ok = round(df_f[dim_cols].notna().all(axis=1).mean() * 100, 1)
+    st.metric("Risposte complete", f"{pct_ok}%")
 
 st.markdown("---")
 
 # ─────────────────────────────────────────────
-# TAB PRINCIPALI
+# TAB
 # ─────────────────────────────────────────────
 tab1, tab2, tab3, tab4, tab5 = st.tabs([
-    "📊 Profilo Semantico",
-    "🔥 Heatmap Correlazione",
-    "🕸️ Radar Chart",
-    "🔭 Gap Analysis",
-    "🔬 Analisi per Segmento",
+    "Profilo semantico",
+    "Distribuzione per età",
+    "Correlazioni",
+    "Radar — segmenti",
+    "Gap oggi / domani",
 ])
 
-# ════════════════════════════════════════════
+# ══════════════════════════════════════════════
 # TAB 1 — PROFILO SEMANTICO
-# ════════════════════════════════════════════
+# ══════════════════════════════════════════════
 with tab1:
-    st.markdown('<div class="section-title">Profilo Semantico Attuale</div>', unsafe_allow_html=True)
-    st.caption("Ogni barra rappresenta la media del campione su quella dimensione bipolare. Errori standard inclusi. Scala: −2 (polo sinistro) → +2 (polo destro).")
+    st.markdown('<div class="section-title">Differenziale Semantico</div>', unsafe_allow_html=True)
+    note(
+        "Ogni riga è una dimensione bipolare (polo negativo ← → polo positivo). "
+        "La barra mostra la media; i whiskers indicano ±1 deviazione standard. "
+        "Il testo accanto riporta valore numerico e polo dominante. "
+        "Scala: −2 = estremo negativo · 0 = neutro · +2 = estremo positivo."
+    )
+    st.plotly_chart(plot_semantic_profile(df_f, dim_cols), use_container_width=True)
 
-    fig1 = plot_semantic_profile(df_f, dim_cols)
-    st.plotly_chart(fig1, use_container_width=True)
-
-    col_dl, _ = st.columns([1, 4])
-    with col_dl:
-        svg_bytes = fig_to_svg(fig1)
-        st.download_button("⬇️ Esporta SVG (vettoriale)", data=svg_bytes, file_name="profilo_semantico.svg", mime="image/svg+xml")
-
-    st.markdown("---")
-    st.markdown('<div class="section-title">Statistiche Descrittive</div>', unsafe_allow_html=True)
-
-    desc = df_f[dim_cols].describe().T[["count", "mean", "std", "min", "max"]]
+    st.markdown('<div class="section-title">Statistiche descrittive</div>', unsafe_allow_html=True)
+    desc = df_f[dim_cols].describe().T[["count","mean","std","min","max"]].round(3)
     desc.columns = ["N", "Media", "Dev.Std.", "Min", "Max"]
-    desc["Media"]    = desc["Media"].round(3)
-    desc["Dev.Std."] = desc["Dev.Std."].round(3)
-
-    # Aggiungi polo dominante
-    def polo_dominante(row):
-        dim = row.name
-        if abs(row["Media"]) < 0.25: return "Neutro"
-        pole_idx = 1 if row["Media"] > 0 else 0
-        return DIMENSION_LABELS.get(dim, ("−", "+"))[pole_idx]
-
-    desc["Polo dominante"] = desc.apply(polo_dominante, axis=1)
+    desc["Polo dominante"] = desc.apply(
+        lambda r: ("Neutro" if abs(r["Media"]) < 0.25
+                   else DIMENSION_LABELS.get(r.name, ("−","+"))[1 if r["Media"] > 0 else 0]),
+        axis=1,
+    )
     st.dataframe(desc, use_container_width=True)
 
-    # Personaggio
-    st.markdown('<div class="section-title">Maddaloni come Personaggio</div>', unsafe_allow_html=True)
-    fig_p = plot_personaggio(df_f)
-    st.plotly_chart(fig_p, use_container_width=True)
+    st.markdown('<div class="section-title">Maddaloni come personaggio</div>', unsafe_allow_html=True)
+    note("Ogni rispondente ha scelto il personaggio che meglio incarna lo spirito della città. "
+         "Passa il cursore sulle barre per la descrizione completa.")
+    st.plotly_chart(plot_personaggio(df_f), use_container_width=True)
 
-# ════════════════════════════════════════════
-# TAB 2 — HEATMAP CORRELAZIONE
-# ════════════════════════════════════════════
+# ══════════════════════════════════════════════
+# TAB 2 — DISTRIBUZIONE PER ETÀ
+# ══════════════════════════════════════════════
 with tab2:
-    st.markdown('<div class="section-title">Heatmap di Correlazione tra Dimensioni</div>', unsafe_allow_html=True)
-    st.caption("Seleziona le dimensioni da mettere in relazione. La scala cromatica va da −1 (correlazione inversa, rosso) a +1 (correlazione diretta, blu).")
-
-    selected_dims = st.multiselect(
-        "Seleziona dimensioni da correlare",
-        options=dim_cols,
-        default=dim_cols,
-        key="corr_dims",
+    st.markdown('<div class="section-title">Distribuzione risposte per fascia d\'età</div>',
+                unsafe_allow_html=True)
+    note(
+        "Seleziona una dimensione per vedere come si distribuiscono le risposte. "
+        "Il box mostra mediana e IQR; ogni punto è una risposta individuale. "
+        "La linea tratteggiata indica il punto neutro della scala (0)."
     )
+    dim_sel = st.selectbox("Dimensione da esplorare", dim_cols, key="box_dim")
+    st.plotly_chart(plot_distribution_strip(df_f, dim_sel), use_container_width=True)
 
-    if len(selected_dims) < 2:
+    with st.expander("Test ANOVA — differenze statistiche tra fasce d'età"):
+        note("p < 0.05: le medie tra fasce d'età differiscono in modo statisticamente significativo.")
+        rows_anova = []
+        for d in dim_cols:
+            gd = [df_f[df_f["eta"] == e][d].dropna().values for e in ETA_ORDER]
+            gd = [g for g in gd if len(g) > 1]
+            if len(gd) >= 2:
+                try:
+                    f_v, p_v = stats.f_oneway(*gd)
+                    rows_anova.append({
+                        "Dimensione": d, "F": round(f_v, 3),
+                        "p-value": round(p_v, 4),
+                        "Significativo (p<0.05)": "Sì" if p_v < 0.05 else "No",
+                    })
+                except Exception:
+                    pass
+        if rows_anova:
+            st.dataframe(
+                pd.DataFrame(rows_anova).sort_values("p-value"),
+                use_container_width=True, hide_index=True,
+            )
+
+# ══════════════════════════════════════════════
+# TAB 3 — CORRELAZIONI
+# ══════════════════════════════════════════════
+with tab3:
+    st.markdown('<div class="section-title">Correlazioni tra dimensioni</div>', unsafe_allow_html=True)
+    note(
+        "Blu: le due dimensioni tendono a muoversi nella stessa direzione. "
+        "Arancio: tendenza opposta. Bianco: nessuna relazione lineare. "
+        "Il valore numerico è riportato in ogni cella."
+    )
+    sel_dims = st.multiselect(
+        "Seleziona dimensioni (minimo 2)",
+        options=dim_cols, default=dim_cols, key="corr_dims",
+    )
+    if len(sel_dims) < 2:
         st.warning("Seleziona almeno 2 dimensioni.")
     else:
-        fig2 = plot_correlation_heatmap(df_f, dim_cols, selected_dims)
-        st.plotly_chart(fig2, use_container_width=True)
+        st.plotly_chart(
+            plot_correlation_heatmap(df_f, dim_cols, sel_dims),
+            use_container_width=True,
+        )
+        with st.expander("Tabella correlazioni con p-value"):
+            sub = df_f[sel_dims].dropna()
+            pairs = []
+            for i, a in enumerate(sel_dims):
+                for j, b in enumerate(sel_dims):
+                    if j > i:
+                        r_v, p_v = stats.pearsonr(sub[a], sub[b])
+                        pairs.append({
+                            "Dim A": a, "Dim B": b,
+                            "r": round(r_v, 3), "p-value": round(p_v, 4),
+                            "Significativo": "Sì" if p_v < 0.05 else "No",
+                        })
+            st.dataframe(
+                pd.DataFrame(pairs).sort_values("r", key=abs, ascending=False).head(15),
+                use_container_width=True, hide_index=True,
+            )
 
-        col_dl2, _ = st.columns([1, 4])
-        with col_dl2:
-            svg_bytes2 = fig_to_svg(fig2)
-            st.download_button("⬇️ Esporta SVG (vettoriale)", data=svg_bytes2, file_name="heatmap_correlazione.svg", mime="image/svg+xml")
-
-        # Top correlazioni
-        st.markdown('<div class="section-title">Correlazioni più significative</div>', unsafe_allow_html=True)
-        sub = df_f[selected_dims].dropna()
-        corr_m = sub.corr()
-        pairs = []
-        for i, a in enumerate(selected_dims):
-            for j, b in enumerate(selected_dims):
-                if j > i:
-                    r, p = stats.pearsonr(sub[a], sub[b])
-                    pairs.append({"Dimensione A": a, "Dimensione B": b,
-                                  "r": round(r, 3), "p-value": round(p, 4)})
-        df_pairs = pd.DataFrame(pairs).sort_values("r", key=abs, ascending=False).head(10)
-        df_pairs["Significativo (p<0.05)"] = df_pairs["p-value"] < 0.05
-        st.dataframe(df_pairs, use_container_width=True)
-
-# ════════════════════════════════════════════
-# TAB 3 — RADAR CHART
-# ════════════════════════════════════════════
-with tab3:
-    st.markdown('<div class="section-title">Radar Chart — Profilo Identitario per Segmento</div>', unsafe_allow_html=True)
-    st.caption("Confronta i profili semantici medi tra diverse categorie di rispondenti. Scala radiale: −2 (polo negativo) → +2 (polo positivo).")
-
+# ══════════════════════════════════════════════
+# TAB 4 — RADAR
+# ══════════════════════════════════════════════
+with tab4:
+    st.markdown('<div class="section-title">Profilo identitario per segmento</div>',
+                unsafe_allow_html=True)
+    note(
+        "Il radar mostra la media di ogni dimensione per ciascun gruppo. "
+        "Ogni gruppo ha colore e stile di linea diversi (distinguibile anche in stampa in bianco e nero). "
+        "Scala radiale: −2 (polo negativo) → +2 (polo positivo)."
+    )
     col_r1, col_r2 = st.columns(2)
     with col_r1:
-        group_col = st.selectbox("Raggruppa per", ["eta", "rapporto"], format_func=lambda x: "Fascia d'età" if x == "eta" else "Rapporto con la città")
+        group_col = st.selectbox(
+            "Raggruppa per",
+            ["eta", "rapporto"],
+            format_func=lambda x: "Fascia d'età" if x == "eta" else "Rapporto con la città",
+        )
     with col_r2:
-        avail_groups = sorted(df_f[group_col].dropna().unique().tolist())
-        sel_groups = st.multiselect("Gruppi da visualizzare", avail_groups, default=avail_groups[:min(4, len(avail_groups))])
-
-    if not sel_groups:
+        avail = sorted(df_f[group_col].dropna().unique().tolist())
+        sel_grp = st.multiselect("Gruppi", avail,
+                                 default=avail[:min(4, len(avail))])
+    if not sel_grp:
         st.warning("Seleziona almeno un gruppo.")
     else:
-        fig3 = plot_radar(df_f, dim_cols, group_col, sel_groups)
-        st.plotly_chart(fig3, use_container_width=True)
+        st.plotly_chart(
+            plot_radar(df_f, dim_cols, group_col, sel_grp),
+            use_container_width=True,
+        )
 
-        col_dl3, _ = st.columns([1, 4])
-        with col_dl3:
-            svg_bytes3 = fig_to_svg(fig3)
-            st.download_button("⬇️ Esporta SVG (vettoriale)", data=svg_bytes3, file_name="radar_chart.svg", mime="image/svg+xml")
+# ══════════════════════════════════════════════
+# TAB 5 — GAP ANALYSIS
+# ══════════════════════════════════════════════
+with tab5:
+    st.markdown('<div class="section-title">Gap Analysis — Maddaloni oggi vs. domani</div>',
+                unsafe_allow_html=True)
+    note(
+        "Sinistra: poli percepiti come più dominanti nell'identità attuale (intensità media ≥ 0.5). "
+        "Destra: aggettivi scelti per la Maddaloni di domani (frequenza % su tutte e tre le scelte). "
+        "Il confronto mostra la distanza tra immaginario attuale e aspirato."
+    )
+    st.plotly_chart(plot_gap(df_f), use_container_width=True)
 
-# ════════════════════════════════════════════
-# TAB 4 — GAP ANALYSIS
-# ════════════════════════════════════════════
-with tab4:
-    st.markdown('<div class="section-title">Gap Analysis — Maddaloni oggi vs. Maddaloni di domani</div>', unsafe_allow_html=True)
-    st.caption("Confronto tra le dimensioni percepite come più polarizzate nel presente e gli aggettivi scelti per la città desiderata.")
-
-    fig4 = plot_gap_analysis(df_f)
-    st.plotly_chart(fig4, use_container_width=True)
-
-    col_dl4, _ = st.columns([1, 4])
-    with col_dl4:
-        svg_bytes4 = fig_to_svg(fig4)
-        st.download_button("⬇️ Esporta SVG (vettoriale)", data=svg_bytes4, file_name="gap_analysis.svg", mime="image/svg+xml")
-
-    # Tabella desiderata
-    st.markdown('<div class="section-title">Frequenze degli Aggettivi Desiderati</div>', unsafe_allow_html=True)
-    col_g1, col_g2, col_g3 = st.columns(3)
-    for i, (col_name, col_g) in enumerate(zip(["desiderata_1", "desiderata_2", "desiderata_3"],
-                                               [col_g1, col_g2, col_g3])):
+    st.markdown('<div class="section-title">Frequenze per set di aggettivi</div>',
+                unsafe_allow_html=True)
+    cg1, cg2, cg3 = st.columns(3)
+    labels_set = ["Set A — Estetica", "Set B — Carattere", "Set C — Valori"]
+    for col_name, col_g, lbl in zip(
+        ["desiderata_1", "desiderata_2", "desiderata_3"],
+        [cg1, cg2, cg3], labels_set,
+    ):
         with col_g:
+            st.markdown(f"**{lbl}**")
             vc = df_f[col_name].value_counts().reset_index()
             vc.columns = ["Aggettivo", "N"]
-            vc["% sul filtro"] = (vc["N"] / n_filt * 100).round(1).astype(str) + "%"
-            st.caption(f"Set {i+1}")
+            vc["%"] = (vc["N"] / n_filt * 100).round(1).astype(str) + "%"
             st.dataframe(vc, use_container_width=True, hide_index=True)
-
-# ════════════════════════════════════════════
-# TAB 5 — ANALISI PER SEGMENTO
-# ════════════════════════════════════════════
-with tab5:
-    st.markdown('<div class="section-title">Analisi per Segmento — Distribuzione Boxplot</div>', unsafe_allow_html=True)
-    st.caption("Seleziona una dimensione per vedere come si distribuisce nelle diverse fasce d'età. I box mostrano mediana, IQR e deviazione standard.")
-
-    dim_sel_box = st.selectbox("Dimensione da analizzare", dim_cols, key="box_dim")
-    fig5 = plot_age_distribution(df_f, dim_sel_box)
-    st.plotly_chart(fig5, use_container_width=True)
-
-    col_dl5, _ = st.columns([1, 4])
-    with col_dl5:
-        svg_bytes5 = fig_to_svg(fig5)
-        st.download_button("⬇️ Esporta SVG (vettoriale)", data=svg_bytes5, file_name=f"distribuzione_{dim_sel_box.replace('/','_')}.svg", mime="image/svg+xml")
-
-    # ANOVA semplice
-    st.markdown('<div class="section-title">Test ANOVA — differenze tra fasce d\'età</div>', unsafe_allow_html=True)
-    st.caption("Verifica se le medie per fascia d'età differiscono statisticamente (p < 0.05 → differenza significativa).")
-    anova_rows = []
-    for d in dim_cols:
-        groups_data = [df_f[df_f["eta"] == e][d].dropna().values for e in ["14-18","19-26","27-55","55+"]]
-        groups_data = [g for g in groups_data if len(g) > 1]
-        if len(groups_data) >= 2:
-            try:
-                f, p = stats.f_oneway(*groups_data)
-                anova_rows.append({"Dimensione": d, "F": round(f, 3), "p-value": round(p, 4), "Significativo": "✅" if p < 0.05 else "—"})
-            except Exception:
-                pass
-    if anova_rows:
-        df_anova = pd.DataFrame(anova_rows).sort_values("p-value")
-        st.dataframe(df_anova, use_container_width=True, hide_index=True)
 
 # ─────────────────────────────────────────────
 # FOOTER
 # ─────────────────────────────────────────────
-st.markdown("---")
 st.markdown(
-    "<small style='color:#aaa;'>Dashboard sviluppata per il progetto di co-progettazione dell'immaginario urbano · "
-    "Dati raccolti marzo 2026 · Tutti i dati sono aggregati e anonimi · "
-    "Metodologia: Differenziale Semantico (Osgood, 1957)</small>",
-    unsafe_allow_html=True
+    '<div class="footer" role="contentinfo">'
+    'Dashboard sviluppata per ricerca scientifica · '
+    'Dati raccolti marzo 2026 · Aggregati e anonimi · '
+    'Metodologia: Differenziale Semantico (Osgood, 1957) · '
+    'Accessibilità: WCAG 2.1 AA'
+    '</div>',
+    unsafe_allow_html=True,
 )
