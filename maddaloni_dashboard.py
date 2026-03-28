@@ -2,7 +2,7 @@
 Dashboard: "Maddaloni attraverso i tuoi occhi"
 Analisi di co-progettazione dell'immaginario urbano
 Autore: Progetto Maddaloni — Dashboard v1.0
-Requisiti: pip install streamlit plotly pandas scipy numpy kaleido
+Requisiti: pip install streamlit plotly pandas scipy numpy
 """
 
 import streamlit as st
@@ -241,8 +241,10 @@ def load_data(uploaded_file=None, default_path=None):
 # FUNZIONI DI PLOTTING
 # ─────────────────────────────────────────────
 
-def fig_to_bytes(fig, scale=3):
-    return fig.to_image(format="png", scale=scale)
+def fig_to_svg(fig):
+    """Export come SVG vettoriale — nessuna dipendenza da Chrome/kaleido.
+    SVG è ideale per pubblicazione accademica (vettoriale, scalabile)."""
+    return fig.to_image(format="svg")
 
 def styled_fig(fig, height=420):
     fig.update_layout(
@@ -530,8 +532,8 @@ with tab1:
 
     col_dl, _ = st.columns([1, 4])
     with col_dl:
-        img_bytes = fig_to_bytes(fig1)
-        st.download_button("⬇️ Esporta PNG 300dpi", data=img_bytes, file_name="profilo_semantico.png", mime="image/png")
+        svg_bytes = fig_to_svg(fig1)
+        st.download_button("⬇️ Esporta SVG (vettoriale)", data=svg_bytes, file_name="profilo_semantico.svg", mime="image/svg+xml")
 
     st.markdown("---")
     st.markdown('<div class="section-title">Statistiche Descrittive</div>', unsafe_allow_html=True)
@@ -578,8 +580,8 @@ with tab2:
 
         col_dl2, _ = st.columns([1, 4])
         with col_dl2:
-            img_bytes2 = fig_to_bytes(fig2)
-            st.download_button("⬇️ Esporta PNG 300dpi", data=img_bytes2, file_name="heatmap_correlazione.png", mime="image/png")
+            svg_bytes2 = fig_to_svg(fig2)
+            st.download_button("⬇️ Esporta SVG (vettoriale)", data=svg_bytes2, file_name="heatmap_correlazione.svg", mime="image/svg+xml")
 
         # Top correlazioni
         st.markdown('<div class="section-title">Correlazioni più significative</div>', unsafe_allow_html=True)
@@ -618,8 +620,8 @@ with tab3:
 
         col_dl3, _ = st.columns([1, 4])
         with col_dl3:
-            img_bytes3 = fig_to_bytes(fig3)
-            st.download_button("⬇️ Esporta PNG 300dpi", data=img_bytes3, file_name="radar_chart.png", mime="image/png")
+            svg_bytes3 = fig_to_svg(fig3)
+            st.download_button("⬇️ Esporta SVG (vettoriale)", data=svg_bytes3, file_name="radar_chart.svg", mime="image/svg+xml")
 
 # ════════════════════════════════════════════
 # TAB 4 — GAP ANALYSIS
@@ -633,8 +635,8 @@ with tab4:
 
     col_dl4, _ = st.columns([1, 4])
     with col_dl4:
-        img_bytes4 = fig_to_bytes(fig4)
-        st.download_button("⬇️ Esporta PNG 300dpi", data=img_bytes4, file_name="gap_analysis.png", mime="image/png")
+        svg_bytes4 = fig_to_svg(fig4)
+        st.download_button("⬇️ Esporta SVG (vettoriale)", data=svg_bytes4, file_name="gap_analysis.svg", mime="image/svg+xml")
 
     # Tabella desiderata
     st.markdown('<div class="section-title">Frequenze degli Aggettivi Desiderati</div>', unsafe_allow_html=True)
@@ -661,8 +663,8 @@ with tab5:
 
     col_dl5, _ = st.columns([1, 4])
     with col_dl5:
-        img_bytes5 = fig_to_bytes(fig5)
-        st.download_button("⬇️ Esporta PNG 300dpi", data=img_bytes5, file_name=f"distribuzione_{dim_sel_box.replace('/','_')}.png", mime="image/png")
+        svg_bytes5 = fig_to_svg(fig5)
+        st.download_button("⬇️ Esporta SVG (vettoriale)", data=svg_bytes5, file_name=f"distribuzione_{dim_sel_box.replace('/','_')}.svg", mime="image/svg+xml")
 
     # ANOVA semplice
     st.markdown('<div class="section-title">Test ANOVA — differenze tra fasce d\'età</div>', unsafe_allow_html=True)
